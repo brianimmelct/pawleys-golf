@@ -670,6 +670,125 @@
     display: none;
   }
   .offline-banner.show { display: block; }
+
+  /* ── STAT PILLS on schedule view ── */
+  .player-stats {
+    display: flex;
+    gap: 5px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .stat-pill.oneputt { background: rgba(74,140,92,0.25);  color: #7fffa0; }
+  .stat-pill.threeputt { background: rgba(192,57,43,0.2); color: #ff8a80; }
+  .stat-pill.chips  { background: rgba(201,168,76,0.2);   color: var(--gold-light); }
+  .stat-pill.water  { background: rgba(41,128,185,0.2);   color: #7ec8e3; }
+
+  /* ── STAT ENTRY GRID ── */
+  .stat-entry-block {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .stat-player-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding-bottom: 8px;
+  }
+  .stat-row-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .stat-col label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .stat-col.score-col label    { color: var(--gold); }
+  .stat-col.oneputt-col label  { color: #7fffa0; }
+  .stat-col.threeputt-col label { color: #ff8a80; }
+  .stat-col.chips-col label    { color: var(--gold-light); }
+  .stat-col.water-col label    { color: #7ec8e3; }
+  .stat-input {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 8px 4px;
+    color: var(--cream);
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Playfair Display', serif;
+    text-align: center;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .stat-input:focus { border-color: var(--gold); background: rgba(255,255,255,0.13); }
+  .stat-col.score-col .stat-input     { color: var(--gold); }
+  .stat-col.oneputt-col .stat-input   { color: #7fffa0; }
+  .stat-col.threeputt-col .stat-input { color: #ff8a80; }
+  .stat-col.chips-col .stat-input     { color: var(--gold-light); }
+  .stat-col.water-col .stat-input     { color: #7ec8e3; }
+
+  /* ── LB STAT SUMMARY ── */
+  .lb-stat-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .lb-stat-chip {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .lb-stat-chip.oneputt   { background: rgba(74,140,92,0.25);  color: #7fffa0; }
+  .lb-stat-chip.threeputt { background: rgba(192,57,43,0.2);   color: #ff8a80; }
+  .lb-stat-chip.chips     { background: rgba(201,168,76,0.2);   color: var(--gold-light); }
+  .lb-stat-chip.water     { background: rgba(41,128,185,0.2);  color: #7ec8e3; }
+
+  /* ── STAT LEADERBOARD CARDS ── */
+  .stat-lb-section { margin-top: 8px; }
+  .stat-lb-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+  }
+  .stat-lb-row:last-child { border-bottom: none; }
+  .stat-lb-name { font-weight: 600; color: var(--cream); flex: 1; }
+  .stat-lb-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: right;
+  }
+  .stat-lb-val.oneputt   { color: #7fffa0; }
+  .stat-lb-val.threeputt { color: #ff8a80; }
+  .stat-lb-val.chips     { color: var(--gold-light); }
+  .stat-lb-val.water     { color: #7ec8e3; }
 </style>
 </head>
 <body>
@@ -736,7 +855,11 @@ function defaultData() {
       { name: '', date: '', teeTime: '' },
       { name: '', date: '', teeTime: '' },
     ],
-    scores: {}, // key: "r{round}_{player}" e.g. "r1_1"
+    scores:   {},  // key: "r{round}_{player}"
+    oneputt:  {},  // key: "r{round}_{player}"
+    threeputt:{},  // key: "r{round}_{player}"
+    chips:    {},
+    water:    {},
   };
 }
 
@@ -862,34 +985,41 @@ function buildScheduleTab() {
         </div>
       </div>`;
 
-    // Group A
-    html += `<div class="group-section group-a">
-      <span class="group-label">Group A</span>
-      <div class="group-players">`;
-    rnd.groupA.forEach(p => {
-      const name = d.players[p-1] || `Player ${p}`;
-      const score = d.scores[`r${i+1}_${p}`];
-      html += `<div class="player-score-row">
-        <span>${name}</span>
-        <span class="player-score-val ${score==null?'empty':''}">${score!=null ? score : '—'}</span>
-      </div>`;
-    });
-    html += `</div></div>
-    <div class="group-divider"></div>`;
+    const buildGroupHtml = (players, groupClass, groupLabel) => {
+      let gh = `<div class="group-section ${groupClass}">
+        <span class="group-label">${groupLabel}</span>
+        <div class="group-players">`;
+      players.forEach(p => {
+        const name = d.players[p-1] || `Player ${p}`;
+        const score    = d.scores[`r${i+1}_${p}`];
+        const oneputt  = d.oneputt?.[`r${i+1}_${p}`];
+        const threeputt= d.threeputt?.[`r${i+1}_${p}`];
+        const chips    = d.chips?.[`r${i+1}_${p}`];
+        const water    = d.water?.[`r${i+1}_${p}`];
+        const hasStats = oneputt != null || threeputt != null || chips != null || water != null;
+        gh += `<div class="player-score-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
+          <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+            <span>${name}</span>
+            <span class="player-score-val ${score==null?'empty':''}">${score!=null ? score : '—'}</span>
+          </div>`;
+        if (hasStats) {
+          gh += `<div class="player-stats">`;
+          if (oneputt   != null) gh += `<span class="stat-pill oneputt">⛳ ${oneputt} 1-putt</span>`;
+          if (threeputt != null) gh += `<span class="stat-pill threeputt">😬 ${threeputt} 3-putt</span>`;
+          if (chips     != null) gh += `<span class="stat-pill chips">🏌️ ${chips} chip</span>`;
+          if (water     != null) gh += `<span class="stat-pill water">💧 ${water} water</span>`;
+          gh += `</div>`;
+        }
+        gh += `</div>`;
+      });
+      gh += `</div></div>`;
+      return gh;
+    };
 
-    // Group B
-    html += `<div class="group-section group-b">
-      <span class="group-label">Group B</span>
-      <div class="group-players">`;
-    rnd.groupB.forEach(p => {
-      const name = d.players[p-1] || `Player ${p}`;
-      const score = d.scores[`r${i+1}_${p}`];
-      html += `<div class="player-score-row">
-        <span>${name}</span>
-        <span class="player-score-val ${score==null?'empty':''}">${score!=null ? score : '—'}</span>
-      </div>`;
-    });
-    html += `</div></div></div>`;
+    html += buildGroupHtml(rnd.groupA, 'group-a', 'Group A');
+    html += `<div class="group-divider"></div>`;
+    html += buildGroupHtml(rnd.groupB, 'group-b', 'Group B');
+    html += `</div>`;
   });
 
   return html;
@@ -907,45 +1037,68 @@ function buildScoresTab() {
     return html;
   }
 
-  html += `<p class="section-heading">Enter Scores by Round</p>
+  html += `<p class="section-heading">Enter Scores &amp; Stats by Round</p>
     <div id="save-status" class="status-msg"></div>`;
+
+  const buildPlayerInputs = (players, rndNum) => {
+    let gh = '';
+    players.forEach(p => {
+      const name      = d.players[p-1] || `Player ${p}`;
+      const score     = d.scores[`r${rndNum}_${p}`]     ?? '';
+      const oneputt   = d.oneputt?.[`r${rndNum}_${p}`]  ?? '';
+      const threeputt = d.threeputt?.[`r${rndNum}_${p}`]?? '';
+      const chips     = d.chips?.[`r${rndNum}_${p}`]    ?? '';
+      const water     = d.water?.[`r${rndNum}_${p}`]    ?? '';
+      gh += `<div class="stat-entry-block">
+        <div class="stat-player-name">${name}</div>
+        <div class="stat-row-inputs" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;">
+          <div class="stat-col score-col">
+            <label>Score</label>
+            <input type="number" class="stat-input" inputmode="numeric"
+              value="${score}" placeholder="—"
+              onchange="saveStat(${rndNum},${p},'score',this.value)">
+          </div>
+          <div class="stat-col oneputt-col">
+            <label>1-Putt</label>
+            <input type="number" class="stat-input" inputmode="numeric"
+              value="${oneputt}" placeholder="—"
+              onchange="saveStat(${rndNum},${p},'oneputt',this.value)">
+          </div>
+          <div class="stat-col threeputt-col">
+            <label>3-Putt</label>
+            <input type="number" class="stat-input" inputmode="numeric"
+              value="${threeputt}" placeholder="—"
+              onchange="saveStat(${rndNum},${p},'threeputt',this.value)">
+          </div>
+          <div class="stat-col chips-col">
+            <label>Chips</label>
+            <input type="number" class="stat-input" inputmode="numeric"
+              value="${chips}" placeholder="—"
+              onchange="saveStat(${rndNum},${p},'chips',this.value)">
+          </div>
+          <div class="stat-col water-col">
+            <label>Water</label>
+            <input type="number" class="stat-input" inputmode="numeric"
+              value="${water}" placeholder="—"
+              onchange="saveStat(${rndNum},${p},'water',this.value)">
+          </div>
+        </div>
+      </div>`;
+    });
+    return gh;
+  };
 
   rounds.forEach((rnd, i) => {
     const course = d.courses[i] || {};
     const courseName = course.name || `Round ${i+1}`;
     html += `<div class="card">
       <div class="card-title">Round ${i+1} <span style="font-size:13px;font-weight:400;color:var(--green-pale)">${courseName}</span></div>
-      <p style="font-size:11px;color:var(--text-light);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Group A</p>
-      <div class="score-grid">`;
-
-    rnd.groupA.forEach(p => {
-      const name = d.players[p-1] || `P${p}`;
-      const val = d.scores[`r${i+1}_${p}`] ?? '';
-      html += `<div>
-        <div class="score-player-label">${name}</div>
-        <input type="number" class="form-input score-input" inputmode="numeric"
-          id="score_r${i+1}_${p}" value="${val}" placeholder="—"
-          onchange="saveScore(${i+1},${p},this.value)">
-      </div>`;
-    });
-
-    html += `</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Group A</p>
+      ${buildPlayerInputs(rnd.groupA, i+1)}
       <div class="divider"></div>
-      <p style="font-size:11px;color:var(--text-light);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Group B</p>
-      <div class="score-grid">`;
-
-    rnd.groupB.forEach(p => {
-      const name = d.players[p-1] || `P${p}`;
-      const val = d.scores[`r${i+1}_${p}`] ?? '';
-      html += `<div>
-        <div class="score-player-label">${name}</div>
-        <input type="number" class="form-input score-input" inputmode="numeric"
-          id="score_r${i+1}_${p}" value="${val}" placeholder="—"
-          onchange="saveScore(${i+1},${p},this.value)">
-      </div>`;
-    });
-
-    html += `</div></div>`;
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Group B</p>
+      ${buildPlayerInputs(rnd.groupB, i+1)}
+    </div>`;
   });
 
   return html;
@@ -955,56 +1108,123 @@ function buildScoresTab() {
 function buildLeaderboardTab() {
   const d = state.data;
   const schedule = d.numRounds === 5 ? SCHEDULE_5 : SCHEDULE_6;
-  const rounds = schedule.slice(0, d.numRounds);
 
   // Build player totals
   let players = d.players.map((name, idx) => {
     const p = idx + 1;
-    let total = 0, count = 0;
+    let totalScore = 0, totalOneputt = 0, totalThreeputt = 0, totalChips = 0, totalWater = 0;
+    let scoreCount = 0, oneputtCount = 0, threeputtCount = 0, chipsCount = 0, waterCount = 0;
     const rndScores = [];
     for (let r = 0; r < d.numRounds; r++) {
       const key = `r${r+1}_${p}`;
-      const s = d.scores[key];
+      const s  = d.scores[key];
+      const op = d.oneputt?.[key];
+      const tp = d.threeputt?.[key];
+      const ch = d.chips?.[key];
+      const wa = d.water?.[key];
       rndScores.push(s != null ? s : null);
-      if (s != null) { total += Number(s); count++; }
+      if (s  != null) { totalScore     += Number(s);  scoreCount++; }
+      if (op != null) { totalOneputt   += Number(op); oneputtCount++; }
+      if (tp != null) { totalThreeputt += Number(tp); threeputtCount++; }
+      if (ch != null) { totalChips     += Number(ch); chipsCount++; }
+      if (wa != null) { totalWater     += Number(wa); waterCount++; }
     }
-    return { name, total, count, rndScores };
-  }).filter(p => p.count > 0)
-    .sort((a,b) => a.total - b.total);
+    return { name, p, totalScore, totalOneputt, totalThreeputt, totalChips, totalWater,
+             scoreCount, oneputtCount, threeputtCount, chipsCount, waterCount, rndScores };
+  });
+
+  const scorers = players.filter(p => p.scoreCount > 0).sort((a,b) => a.totalScore - b.totalScore);
 
   let html = `<p class="section-heading">Standings</p>`;
 
-  if (players.length === 0) {
+  if (scorers.length === 0) {
     html += `<div class="card"><p style="color:var(--green-pale);text-align:center;font-size:14px;">No scores yet — check back after Round 1!</p></div>`;
-    return html;
+  } else {
+    html += `<div class="card" style="padding:0;">`;
+    scorers.forEach((p, i) => {
+      const rankLabel = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+      const rankClass = i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+      const pills = p.rndScores.map((s,ri) => s!=null ? `<span class="lb-score-pill">R${ri+1}: ${s}</span>` : '').join('');
+      const statChips = [
+        p.oneputtCount   > 0 ? `<span class="lb-stat-chip oneputt">⛳ ${p.totalOneputt} 1-putt</span>`     : '',
+        p.threeputtCount > 0 ? `<span class="lb-stat-chip threeputt">😬 ${p.totalThreeputt} 3-putt</span>` : '',
+        p.chipsCount     > 0 ? `<span class="lb-stat-chip chips">🏌️ ${p.totalChips} chips</span>`          : '',
+        p.waterCount     > 0 ? `<span class="lb-stat-chip water">💧 ${p.totalWater} water</span>`           : '',
+      ].filter(Boolean).join('');
+      html += `<div class="leaderboard-row">
+        <div class="lb-rank ${rankClass}">${rankLabel}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="lb-name">${p.name}</div>
+          <div class="lb-scores">${pills}</div>
+          ${statChips ? `<div class="lb-stat-row">${statChips}</div>` : ''}
+        </div>
+        <div class="lb-total">${p.totalScore}</div>
+      </div>`;
+    });
+    html += `</div>`;
   }
 
-  html += `<div class="card" style="padding:0;">`;
-  players.forEach((p, i) => {
-    const rankClass = i===0?'r1':i===1?'r2':i===2?'r3':'rn';
-    const rankLabel = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
-    const pills = p.rndScores.map((s,ri) => s!=null ? `<span class="lb-score-pill">R${ri+1}: ${s}</span>` : '').join('');
-    html += `<div class="leaderboard-row">
-      <div class="lb-rank ${rankClass}">${rankLabel}</div>
-      <div style="flex:1">
-        <div class="lb-name">${p.name}</div>
-        <div class="lb-scores">${pills}</div>
-      </div>
-      <div class="lb-total">${p.total}</div>
-    </div>`;
-  });
-  html += `</div>`;
+  // Stat sub-leaderboards
+  const withOneputt   = players.filter(p=>p.oneputtCount>0).sort((a,b)=>b.totalOneputt-a.totalOneputt);
+  const withThreeputt = players.filter(p=>p.threeputtCount>0).sort((a,b)=>b.totalThreeputt-a.totalThreeputt);
+  const withChips     = players.filter(p=>p.chipsCount>0).sort((a,b)=>b.totalChips-a.totalChips);
+  const withWater     = players.filter(p=>p.waterCount>0).sort((a,b)=>b.totalWater-a.totalWater);
 
-  // All players with no scores
-  const noScore = d.players.filter((_,idx) => {
-    const p = idx+1;
-    return !Array.from({length:d.numRounds},(_,r)=>`r${r+1}_${p}`).some(k=>d.scores[k]!=null);
-  });
+  if (withOneputt.length > 0) {
+    html += `<p class="section-heading">⛳ Most 1-Putts</p><div class="card" style="padding:0;">`;
+    withOneputt.forEach((p,i) => {
+      html += `<div class="stat-lb-row">
+        <span style="color:var(--text-light);font-size:13px;min-width:22px;">${i+1}</span>
+        <span class="stat-lb-name">${p.name}</span>
+        <span class="stat-lb-val oneputt">${p.totalOneputt}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (withThreeputt.length > 0) {
+    html += `<p class="section-heading">😬 Most 3-Putts</p><div class="card" style="padding:0;">`;
+    withThreeputt.forEach((p,i) => {
+      html += `<div class="stat-lb-row">
+        <span style="color:var(--text-light);font-size:13px;min-width:22px;">${i+1}</span>
+        <span class="stat-lb-name">${p.name}</span>
+        <span class="stat-lb-val threeputt">${p.totalThreeputt}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (withChips.length > 0) {
+    html += `<p class="section-heading">🏌️ Most Chips</p><div class="card" style="padding:0;">`;
+    withChips.forEach((p,i) => {
+      html += `<div class="stat-lb-row">
+        <span style="color:var(--text-light);font-size:13px;min-width:22px;">${i+1}</span>
+        <span class="stat-lb-name">${p.name}</span>
+        <span class="stat-lb-val chips">${p.totalChips}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (withWater.length > 0) {
+    html += `<p class="section-heading">💧 Most Water Balls</p><div class="card" style="padding:0;">`;
+    withWater.forEach((p,i) => {
+      html += `<div class="stat-lb-row">
+        <span style="color:var(--text-light);font-size:13px;min-width:22px;">${i+1}</span>
+        <span class="stat-lb-name">${p.name}</span>
+        <span class="stat-lb-val water">${p.totalWater}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Players with no scores yet
+  const noScore = players.filter(p => p.scoreCount === 0);
   if (noScore.length > 0) {
     html += `<p class="section-heading">Yet to Play</p>
       <div class="card">
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${noScore.map(n=>`<span style="background:rgba(255,255,255,0.07);padding:6px 12px;border-radius:20px;font-size:13px;">${n}</span>`).join('')}
+          ${noScore.map(p=>`<span style="background:rgba(255,255,255,0.07);padding:6px 12px;border-radius:20px;font-size:13px;">${p.name}</span>`).join('')}
         </div>
       </div>`;
   }
@@ -1185,18 +1405,28 @@ window.saveCourse = async function(i) {
   showAdminStatus(`Round ${i+1} saved ✓`, 'success');
 };
 
-window.saveScore = async function(round, player, value) {
+window.saveStat = async function(round, player, statType, value) {
   const key = `r${round}_${player}`;
   const num = value === '' ? null : parseInt(value);
-  if (num === null) {
-    delete state.data.scores[key];
-  } else {
-    state.data.scores[key] = num;
-  }
+
+  if (!state.data.oneputt)   state.data.oneputt   = {};
+  if (!state.data.threeputt) state.data.threeputt = {};
+  if (!state.data.chips)     state.data.chips     = {};
+  if (!state.data.water)     state.data.water     = {};
+
+  const store = statType === 'score'     ? state.data.scores
+              : statType === 'oneputt'   ? state.data.oneputt
+              : statType === 'threeputt' ? state.data.threeputt
+              : statType === 'chips'     ? state.data.chips
+              :                            state.data.water;
+
+  if (num === null) { delete store[key]; }
+  else              { store[key] = num;  }
+
   await saveToFirebase();
   const el = document.getElementById('save-status');
   if (el) {
-    el.textContent = 'Score saved ✓';
+    el.textContent = 'Saved ✓';
     el.className = 'status-msg success show';
     setTimeout(() => el.classList.remove('show'), 2000);
   }
@@ -1209,10 +1439,13 @@ async function loadFromFirebase() {
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const fetched = snap.data();
-      // Ensure courses array has 6 slots
       while ((fetched.courses||[]).length < 6) {
         fetched.courses.push({ name:'', date:'', teeTime:'' });
       }
+      if (!fetched.oneputt)   fetched.oneputt   = {};
+      if (!fetched.threeputt) fetched.threeputt = {};
+      if (!fetched.chips)     fetched.chips     = {};
+      if (!fetched.water)     fetched.water     = {};
       state.data = { ...defaultData(), ...fetched };
     } else {
       state.data = defaultData();
@@ -1243,6 +1476,10 @@ function subscribeToUpdates() {
       while ((fetched.courses||[]).length < 6) {
         fetched.courses.push({ name:'', date:'', teeTime:'' });
       }
+      if (!fetched.oneputt)   fetched.oneputt   = {};
+      if (!fetched.threeputt) fetched.threeputt = {};
+      if (!fetched.chips)     fetched.chips     = {};
+      if (!fetched.water)     fetched.water     = {};
       state.data = { ...defaultData(), ...fetched };
       if (state.currentTab !== 'admin') renderApp();
     }
