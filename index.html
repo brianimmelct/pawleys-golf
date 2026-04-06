@@ -968,7 +968,9 @@ function defaultData() {
     threeputt:{},  // key: "r{round}_{player}"
     chips:    {},
     water:    {},
-    handicaps: [null, null, null, null, null, null], // Player 1 handicap per round (index 0-5)
+    handicaps:  [null, null, null, null, null, null], // Player 1 handicap per round (index 0-5)
+    handicaps2: [null, null, null, null, null, null], // Player 2 handicap per round
+    handicaps3: [null, null, null, null, null, null], // Player 3 handicap per round
   };
 }
 
@@ -1350,97 +1352,147 @@ function buildMatchTab() {
   const d = state.data;
   const p1name = d.players[0] || 'Player 1';
   const p2name = d.players[1] || 'Player 2';
-  const hcps   = d.handicaps || Array(6).fill(null);
+  const p3name = d.players[2] || 'Player 3';
+  const hcps1  = d.handicaps  || Array(6).fill(null);
+  const hcps2  = d.handicaps2 || Array(6).fill(null);
+  const hcps3  = d.handicaps3 || Array(6).fill(null);
   const numR   = d.numRounds;
 
   // Build per-round data
-  let p1NetTotal = 0, p2NetTotal = 0;
-  let p1NetCount = 0, p2NetCount = 0;
+  let p1NetTotal = 0, p2NetTotal = 0, p3NetTotal = 0;
+  let p1NetCount = 0, p2NetCount = 0, p3NetCount = 0;
   const rounds = [];
   for (let r = 0; r < numR; r++) {
-    const gross = d.scores[`r${r+1}_1`] ?? null;
-    const hcp   = hcps[r] ?? null;
-    const net1  = (gross != null && hcp != null) ? gross - hcp : null;
-    const net2  = d.scores[`r${r+1}_2`] ?? null;
+    const gross1 = d.scores[`r${r+1}_1`] ?? null;
+    const hcp1   = hcps1[r] ?? null;
+    const net1   = (gross1 != null && hcp1 != null) ? gross1 - hcp1 : null;
+    const gross2 = d.scores[`r${r+1}_2`] ?? null;
+    const hcp2   = hcps2[r] ?? null;
+    const net2   = (gross2 != null && hcp2 != null) ? gross2 - hcp2 : null;
+    const gross3 = d.scores[`r${r+1}_3`] ?? null;
+    const hcp3   = hcps3[r] ?? null;
+    const net3   = (gross3 != null && hcp3 != null) ? gross3 - hcp3 : null;
     if (net1 != null) { p1NetTotal += net1; p1NetCount++; }
     if (net2 != null) { p2NetTotal += net2; p2NetCount++; }
-    rounds.push({ gross, hcp, net1, net2 });
+    if (net3 != null) { p3NetTotal += net3; p3NetCount++; }
+    rounds.push({ gross1, hcp1, net1, gross2, hcp2, net2, gross3, hcp3, net3 });
   }
 
   // Round column headers
   const roundHeaders = Array.from({length: numR}, (_,i) => `<th>R${i+1}</th>`).join('');
   const totalHeader  = `<th class="total-col">Total</th>`;
 
-  // Build cell helpers
+  // Cell helpers
   const val = (v, cls='') => v != null
     ? `<td class="${cls}">${v}</td>`
     : `<td class="empty-val ${cls}">—</td>`;
 
-  const winnerHighlight = (v1, v2, cls) => {
-    if (v1 == null || v2 == null) return [val(v1,cls), val(v2,cls)];
-    const w1 = v1 < v2 ? ' winner' : '';
-    const w2 = v2 < v1 ? ' winner' : '';
-    return [`<td class="${cls}${w1}">${v1}</td>`, `<td class="${cls}${w2}">${v2}</td>`];
-  };
+  // Highlight lowest net among up-to-3 values per round
+  const netCells3 = (nets, cls) => rounds.map(r => {
+    const vals = nets.map(n => r[n]);
+    const defined = vals.filter(v => v != null);
+    const minVal = defined.length > 0 ? Math.min(...defined) : null;
+    return vals.map((v, i) => {
+      if (v == null) return `<td class="empty-val">—</td>`;
+      const isWinner = defined.length > 1 && v === minVal;
+      return `<td class="${isWinner ? 'winner' : ''}">${v}</td>`;
+    });
+  });
 
-  // Per-round cells
-  const grossCells  = rounds.map(r => val(r.gross)).join('');
-  const hcpCells    = rounds.map(r => val(r.hcp)).join('');
-  const net1Cells   = rounds.map(r => r.net1 != null ? `<td>${r.net1}</td>` : `<td class="empty-val">—</td>`).join('');
-  const net2Cells   = rounds.map(r => r.net2 != null ? `<td>${r.net2}</td>` : `<td class="empty-val">—</td>`).join('');
+  // Per-round net cells with winner highlighting
+  const netRounds = netCells3(['net1','net2','net3'], 'row-net');
+  const net1Cells  = netRounds.map(r => r[0]).join('');
+  const net2Cells  = netRounds.map(r => r[1]).join('');
+  const net3Cells  = netRounds.map(r => r[2]).join('');
 
-  // Total cells with winner highlight
-  const [tot1Cell, tot2Cell] = winnerHighlight(
+  // Total winner highlight (3-way)
+  const totals = [
     p1NetCount > 0 ? p1NetTotal : null,
     p2NetCount > 0 ? p2NetTotal : null,
-    'total-col'
-  );
+    p3NetCount > 0 ? p3NetTotal : null,
+  ];
+  const definedTots = totals.filter(v => v != null);
+  const minTot = definedTots.length > 0 ? Math.min(...definedTots) : null;
+  const totCell = (v) => {
+    if (v == null) return `<td class="total-col empty-val">—</td>`;
+    const isWinner = definedTots.length > 1 && v === minTot;
+    return `<td class="total-col${isWinner ? ' winner' : ''}">${v}</td>`;
+  };
+  const tot1Cell = totCell(totals[0]);
+  const tot2Cell = totCell(totals[1]);
+  const tot3Cell = totCell(totals[2]);
 
-  // Winner banner
+  // Leader banner
   let banner = '';
-  if (p1NetCount > 0 && p2NetCount > 0 && p1NetCount === p2NetCount) {
-    if (p1NetTotal < p2NetTotal)
-      banner = `<div class="match-winner-banner">🏆 ${p1name} leads — ${p1NetTotal} vs ${p2NetTotal}</div>`;
-    else if (p2NetTotal < p1NetTotal)
-      banner = `<div class="match-winner-banner">🏆 ${p2name} leads — ${p2NetTotal} vs ${p1NetTotal}</div>`;
-    else
-      banner = `<div class="match-winner-banner">🤝 All Square — ${p1NetTotal} each</div>`;
-  } else if (p1NetCount > 0 || p2NetCount > 0) {
-    const played = Math.max(p1NetCount, p2NetCount);
-    if (p1NetCount === p2NetCount) {
-      if (p1NetTotal < p2NetTotal)
-        banner = `<div class="match-winner-banner">⛳ ${p1name} leads after ${played} rounds</div>`;
-      else if (p2NetTotal < p1NetTotal)
-        banner = `<div class="match-winner-banner">⛳ ${p2name} leads after ${played} rounds</div>`;
-      else
-        banner = `<div class="match-winner-banner">🤝 All Square after ${played} rounds</div>`;
-    }
+  if (definedTots.length > 0) {
+    const leaders = [p1name, p2name, p3name].filter((_,i) => totals[i] === minTot && totals[i] != null);
+    const played = Math.max(p1NetCount, p2NetCount, p3NetCount);
+    if (leaders.length === 1)
+      banner = `<div class="match-winner-banner">🏆 ${leaders[0]} leads after ${played} round${played!==1?'s':''}</div>`;
+    else if (leaders.length > 1)
+      banner = `<div class="match-winner-banner">🤝 ${leaders.join(' & ')} tied at ${minTot} after ${played} round${played!==1?'s':''}</div>`;
   }
 
-  // Admin handicap entry section
+  // Admin handicap entry — all three players
   let adminSection = '';
   if (state.isAdmin) {
-    const hcpRows = Array.from({length: numR}, (_,i) => {
-      const val = hcps[i] != null ? hcps[i] : '';
+    const hcpRows = (hcps, playerKey) => Array.from({length: numR}, (_,i) => {
+      const v = hcps[i] != null ? hcps[i] : '';
       return `<div class="hcp-round-item">
         <span class="hcp-round-label">Round ${i+1}</span>
         <input type="number" class="hcp-input" inputmode="numeric"
-          value="${val}" placeholder="—"
-          onchange="saveHandicap(${i}, this.value)">
+          value="${v}" placeholder="—"
+          onchange="saveHandicap(${i},'${playerKey}',this.value)">
       </div>`;
     }).join('');
 
     adminSection = `
       <p class="section-heading">⚙️ ${p1name} Handicap by Round</p>
       <div class="card">
-        <p class="small-note" style="margin-bottom:14px;">Enter ${p1name}'s handicap for each round. Net score = Gross − Handicap.</p>
-        <div class="hcp-input-row">${hcpRows}</div>
+        <p class="small-note" style="margin-bottom:14px;">Net = Gross − Handicap</p>
+        <div class="hcp-input-row">${hcpRows(hcps1,'p1')}</div>
+      </div>
+      <p class="section-heading">⚙️ ${p2name} Handicap by Round</p>
+      <div class="card">
+        <p class="small-note" style="margin-bottom:14px;">Net = Gross − Handicap</p>
+        <div class="hcp-input-row">${hcpRows(hcps2,'p2')}</div>
+      </div>
+      <p class="section-heading">⚙️ ${p3name} Handicap by Round</p>
+      <div class="card">
+        <p class="small-note" style="margin-bottom:14px;">Net = Gross − Handicap</p>
+        <div class="hcp-input-row">${hcpRows(hcps3,'p3')}</div>
         <div id="hcp-status" class="status-msg"></div>
       </div>`;
   }
 
   return `
-    <p class="section-heading">⚔️ ${p1name} vs ${p2name} — Net Score Match</p>
+    <div style="
+      background: linear-gradient(135deg, var(--green-mid), var(--green-deep));
+      border: 1px solid rgba(201,168,76,0.35);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      text-align: center;
+      margin-bottom: 16px;
+    ">
+      <div style="font-size: 20px; margin-bottom: 6px;">🏆</div>
+      <div style="
+        font-family: 'Playfair Display', serif;
+        font-size: 20px;
+        font-weight: 900;
+        color: var(--gold);
+        letter-spacing: 0.5px;
+        line-height: 1.3;
+      ">Pawleys Island<br>Super Senior Match</div>
+      <div style="
+        font-size: 11px;
+        color: var(--green-pale);
+        margin-top: 6px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 600;
+      ">${p1name} · ${p2name} · ${p3name}</div>
+    </div>
+    <p class="section-heading">⚔️ Net Score by Round</p>
     ${banner}
     <div class="card">
       <div class="match-table-wrap">
@@ -1455,12 +1507,12 @@ function buildMatchTab() {
           <tbody>
             <tr class="row-gross">
               <td class="row-label">${p1name} — Gross</td>
-              ${grossCells}
+              ${rounds.map(r => val(r.gross1)).join('')}
               <td class="total-col empty-val">—</td>
             </tr>
             <tr class="row-hcp">
               <td class="row-label">${p1name} — Handicap</td>
-              ${hcpCells}
+              ${rounds.map(r => val(r.hcp1)).join('')}
               <td class="total-col empty-val">—</td>
             </tr>
             <tr class="row-net">
@@ -1468,15 +1520,42 @@ function buildMatchTab() {
               ${net1Cells}
               ${tot1Cell}
             </tr>
+            <tr style="height:6px;"><td colspan="${numR+2}" style="background:rgba(255,255,255,0.04);padding:0;"></td></tr>
+            <tr class="row-gross">
+              <td class="row-label">${p2name} — Gross</td>
+              ${rounds.map(r => val(r.gross2)).join('')}
+              <td class="total-col empty-val">—</td>
+            </tr>
+            <tr class="row-hcp">
+              <td class="row-label">${p2name} — Handicap</td>
+              ${rounds.map(r => val(r.hcp2)).join('')}
+              <td class="total-col empty-val">—</td>
+            </tr>
             <tr class="row-jim">
               <td class="row-label">${p2name} — Net ✦</td>
               ${net2Cells}
               ${tot2Cell}
             </tr>
+            <tr style="height:6px;"><td colspan="${numR+2}" style="background:rgba(255,255,255,0.04);padding:0;"></td></tr>
+            <tr class="row-gross">
+              <td class="row-label">${p3name} — Gross</td>
+              ${rounds.map(r => val(r.gross3)).join('')}
+              <td class="total-col empty-val">—</td>
+            </tr>
+            <tr class="row-hcp">
+              <td class="row-label">${p3name} — Handicap</td>
+              ${rounds.map(r => val(r.hcp3)).join('')}
+              <td class="total-col empty-val">—</td>
+            </tr>
+            <tr class="row-net">
+              <td class="row-label">${p3name} — Net ✦</td>
+              ${net3Cells}
+              ${tot3Cell}
+            </tr>
           </tbody>
         </table>
       </div>
-      <p class="small-note" style="margin-top:10px;">✦ Highlighted cell = lower net score that round · Gold total = match leader</p>
+      <p class="small-note" style="margin-top:10px;">✦ Gold cell = lowest net that round · Gold total = match leader</p>
     </div>
     ${adminSection}`;
 }
@@ -1654,9 +1733,12 @@ window.saveCourse = async function(i) {
   showAdminStatus(`Round ${i+1} saved ✓`, 'success');
 };
 
-window.saveHandicap = async function(roundIndex, value) {
-  if (!state.data.handicaps) state.data.handicaps = Array(6).fill(null);
-  state.data.handicaps[roundIndex] = value === '' ? null : parseInt(value);
+window.saveHandicap = async function(roundIndex, player, value) {
+  const field = player === 'p3' ? 'handicaps3'
+              : player === 'p2' ? 'handicaps2'
+              :                   'handicaps';
+  if (!state.data[field]) state.data[field] = Array(6).fill(null);
+  state.data[field][roundIndex] = value === '' ? null : parseInt(value);
   await saveToFirebase();
   const el = document.getElementById('hcp-status');
   if (el) {
@@ -1703,11 +1785,13 @@ async function loadFromFirebase() {
       while ((fetched.courses||[]).length < 6) {
         fetched.courses.push({ name:'', date:'', teeTime:'' });
       }
-      if (!fetched.oneputt)   fetched.oneputt   = {};
-      if (!fetched.threeputt) fetched.threeputt = {};
-      if (!fetched.chips)     fetched.chips     = {};
-      if (!fetched.water)     fetched.water     = {};
-      if (!fetched.handicaps) fetched.handicaps = Array(6).fill(null);
+      if (!fetched.oneputt)    fetched.oneputt    = {};
+      if (!fetched.threeputt)  fetched.threeputt  = {};
+      if (!fetched.chips)      fetched.chips      = {};
+      if (!fetched.water)      fetched.water      = {};
+      if (!fetched.handicaps)  fetched.handicaps  = Array(6).fill(null);
+      if (!fetched.handicaps2) fetched.handicaps2 = Array(6).fill(null);
+      if (!fetched.handicaps3) fetched.handicaps3 = Array(6).fill(null);
       state.data = { ...defaultData(), ...fetched };
     } else {
       state.data = defaultData();
@@ -1738,11 +1822,13 @@ function subscribeToUpdates() {
       while ((fetched.courses||[]).length < 6) {
         fetched.courses.push({ name:'', date:'', teeTime:'' });
       }
-      if (!fetched.oneputt)   fetched.oneputt   = {};
-      if (!fetched.threeputt) fetched.threeputt = {};
-      if (!fetched.chips)     fetched.chips     = {};
-      if (!fetched.water)     fetched.water     = {};
-      if (!fetched.handicaps) fetched.handicaps = Array(6).fill(null);
+      if (!fetched.oneputt)    fetched.oneputt    = {};
+      if (!fetched.threeputt)  fetched.threeputt  = {};
+      if (!fetched.chips)      fetched.chips      = {};
+      if (!fetched.water)      fetched.water      = {};
+      if (!fetched.handicaps)  fetched.handicaps  = Array(6).fill(null);
+      if (!fetched.handicaps2) fetched.handicaps2 = Array(6).fill(null);
+      if (!fetched.handicaps3) fetched.handicaps3 = Array(6).fill(null);
       state.data = { ...defaultData(), ...fetched };
       if (state.currentTab !== 'admin') renderApp();
     }
